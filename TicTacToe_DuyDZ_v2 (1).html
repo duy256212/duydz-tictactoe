@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TIC TAC TOE - DUY DZ</title>
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;padding:20px;display:grid;place-items:center;font-family:Arial,sans-serif;color:#effaff;background:radial-gradient(circle at top,#38bdf8,#0369a1 48%,#082f49)}
+main{width:min(100%,500px);padding:24px;border-radius:24px;text-align:center;background:#082f49;border:1px solid #7dd3fc;box-shadow:0 18px 55px #00182799}
+h1{margin:0;color:#bae6fd;letter-spacing:3px} .sub{color:#bae6fd;margin:8px 0 18px}
+.settings{display:grid;grid-template-columns:1fr 1fr;gap:10px}select,button{font:inherit}
+select{width:100%;padding:12px;border-radius:10px;border:1px solid #7dd3fc;background:#075985;color:white}
+#status{min-height:26px;margin:18px 0;font-weight:bold;font-size:19px}
+.score,.totals{display:flex;justify-content:space-around;gap:8px;padding:13px;margin:12px 0;border-radius:13px;background:#0c4a6e}
+.score strong,.totals strong{display:block;font-size:25px;color:#bae6fd}
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.cell{aspect-ratio:1;border:2px solid #38bdf8;border-radius:15px;background:linear-gradient(145deg,#0c6b99,#075985);color:white;font-size:clamp(42px,12vw,60px);font-weight:bold;cursor:pointer}
+.cell:disabled{cursor:default}.cell.x{color:#bae6fd;text-shadow:0 0 15px #38bdf8}.cell.o{color:#fef08a;text-shadow:0 0 15px #fde047}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:15px}
+.action{padding:13px;border:0;border-radius:10px;background:#7dd3fc;color:#082f49;font-weight:bold;cursor:pointer}
+.action.alt{background:#075985;color:white;border:1px solid #38bdf8}
+.achievement{margin-top:15px;padding:14px;text-align:left;border:1px solid #38bdf8;border-radius:12px;background:#103d5a}
+.achievement h3{margin:0 0 8px;color:#bae6fd}.achievement p{font-size:14px;margin:6px 0}.locked{color:#dbeafe}.unlocked{color:#fde68a}
+footer{font-size:12px;color:#bae6fd;margin-top:17px}
+.overlay{display:none;position:fixed;inset:0;z-index:5;background:#031827dd;place-items:center;padding:20px}.overlay.show{display:grid}
+.card{width:min(100%,380px);padding:28px;text-align:center;border:2px solid #7dd3fc;border-radius:20px;background:linear-gradient(145deg,#075985,#082f49)}
+.card h2{color:#bae6fd}.card p{line-height:1.6}
+</style>
+</head>
+<body>
+<main>
+<h1>TIC TAC TOE</h1><p class="sub">X O GAME - DUY DZ</p>
+<div class="settings">
+<select id="mode"><option value="ai">Đấu với AI</option><option value="two">Hai người chơi</option></select>
+<select id="level"><option value="easy">AI dễ</option><option value="medium" selected>AI vừa</option><option value="hard">AI khó</option></select>
+</div>
+<div id="status">Bạn là X — hãy bắt đầu!</div>
+<div class="score">
+<div>X - BẠN<strong id="sx">0</strong></div><div>HÒA<strong id="sd">0</strong></div><div>O - AI<strong id="so">0</strong></div>
+</div>
+<div class="board" id="board"></div>
+<div class="actions"><button class="action" id="next">VÁN MỚI</button><button class="action alt" id="reset">ĐẶT LẠI TRẬN</button></div>
+<div class="totals">
+<div>Ván thắng<strong id="wins">0</strong></div><div>Ván hòa<strong id="draws">0</strong></div><div>Ván thua<strong id="losses">0</strong></div>
+</div>
+<section class="achievement"><h3>🏆 Thành tựu: Người chơi toàn diện</h3><p id="ach" class="locked">🔒 Chưa mở khóa — đạt 1 thắng, 1 hòa và 1 thua.</p><p id="progress">Tiến độ: Thắng 0/1 · Hòa 0/1 · Thua 0/1</p></section>
+<footer>© 2026 DUY DZ GAMING</footer>
+</main>
+<div class="overlay" id="end"><div class="card"><h2 id="endTitle">TRẬN ĐẤU KẾT THÚC</h2><p id="endText">Cảm ơn bạn đã trải nghiệm ạ!</p><button class="action" id="again">CHƠI LẠI</button></div></div>
+<script>
+const $=id=>document.getElementById(id), cells=[];
+const lines=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+let board=Array(9).fill(""),turn="X",roundOver=false,matchOver=false,timer=null;
+let score={X:0,O:0,D:0},total={wins:0,draws:0,losses:0};
+for(let i=0;i<9;i++){let b=document.createElement("button");b.className="cell";b.setAttribute("aria-label","Ô "+(i+1));b.onclick=()=>play(i);$("board").appendChild(b);cells.push(b)}
+function winner(b){for(const [a,c,d] of lines)if(b[a]&&b[a]===b[c]&&b[c]===b[d])return b[a];return null}
+function empty(b){return b.map((v,i)=>v===""?i:-1).filter(i=>i>=0)}
+function render(){
+ cells.forEach((c,i)=>{c.textContent=board[i];c.className="cell"+(board[i]?" "+board[i].toLowerCase():"");c.disabled=!!board[i]||roundOver||matchOver||($("mode").value==="ai"&&turn==="O")});
+ $("sx").textContent=score.X;$("so").textContent=score.O;$("sd").textContent=score.D;
+ $("wins").textContent=total.wins;$("draws").textContent=total.draws;$("losses").textContent=total.losses;
+ let ok=total.wins>0&&total.draws>0&&total.losses>0;
+ $("ach").textContent=ok?"🏆 ĐÃ MỞ KHÓA! Bạn đã có đủ 1 thắng, 1 hòa và 1 thua.":"🔒 Chưa mở khóa — đạt 1 thắng, 1 hòa và 1 thua.";
+ $("ach").className=ok?"unlocked":"locked";
+ $("progress").textContent=`Tiến độ: Thắng ${Math.min(1,total.wins)}/1 · Hòa ${Math.min(1,total.draws)}/1 · Thua ${Math.min(1,total.losses)}/1`;
+}
+function play(i){if(roundOver||matchOver||board[i]||turn!=="X")return;move(i);if(!roundOver&&!matchOver&&$("mode").value==="ai"){ $("status").textContent="AI đang suy nghĩ...";render();timer=setTimeout(aiMove,350)}}
+function move(i){board[i]=turn;let w=winner(board);
+ if(w){roundOver=true;if(w==="X"){score.X++;total.wins++;$("status").textContent=$("mode").value==="ai"?"Bạn thắng ván này! 🎉":"X thắng ván này! 🎉"}else{score.O++;total.losses++;$("status").textContent=$("mode").value==="ai"?"AI thắng ván này!":"O thắng ván này!"}render();endCheck();return}
+ if(!empty(board).length){roundOver=true;score.D++;total.draws++;$("status").textContent="Ván này hòa!";render();endCheck();return}
+ turn=turn==="X"?"O":"X";$("status").textContent=$("mode").value==="ai"?(turn==="X"?"Lượt của bạn (X)":"AI đang suy nghĩ..."):"Lượt của "+turn;render()
+}
+function tactical(mark){for(const i of empty(board)){board[i]=mark;let yes=winner(board)===mark;board[i]="";if(yes)return i}return -1}
+function minimax(b,max){let w=winner(b);if(w==="O")return 10;if(w==="X")return -10;let e=empty(b);if(!e.length)return 0;let best=max?-Infinity:Infinity;for(const i of e){b[i]=max?"O":"X";let val=minimax(b,!max);b[i]="";best=max?Math.max(best,val):Math.min(best,val)}return best}
+function hardMove(){let best=-Infinity,choice=-1;for(const i of empty(board)){board[i]="O";let v=minimax(board,false);board[i]="";if(v>best){best=v;choice=i}}return choice}
+function aiMove(){timer=null;if(roundOver||matchOver||turn!=="O")return;let level=$("level").value,choice=-1;
+ if(level==="easy"){let e=empty(board);choice=e[Math.floor(Math.random()*e.length)]}
+ else if(level==="medium"){choice=tactical("O");if(choice<0)choice=tactical("X");if(choice<0&&board[4]==="")choice=4;if(choice<0){let e=empty(board);choice=e[Math.floor(Math.random()*e.length)]}}
+ else choice=hardMove();
+ if(choice>=0)move(choice)
+}
+function endCheck(){if(score.X>=5||score.O>=5){matchOver=true;render();$("endTitle").textContent=score.X>=5?"🏆 BẠN ĐÃ THẮNG CẢ TRẬN!":"🤖 AI ĐÃ THẮNG CẢ TRẬN!";$("endText").textContent=`Tỉ số cuối cùng: X ${score.X} - ${score.O} O. Cảm ơn bạn đã trải nghiệm ạ!`;$("end").classList.add("show")}}
+function newRound(){clearTimeout(timer);timer=null;if(matchOver)return;board=Array(9).fill("");turn="X";roundOver=false;$("status").textContent=$("mode").value==="ai"?"Bạn là X — hãy bắt đầu!":"Lượt của X";render()}
+function reset(){clearTimeout(timer);timer=null;score={X:0,O:0,D:0};total={wins:0,draws:0,losses:0};matchOver=false;$("end").classList.remove("show");newRound()}
+$("next").onclick=newRound;$("reset").onclick=reset;$("again").onclick=reset;
+$("mode").onchange=()=>{$("level").disabled=$("mode").value!=="ai";reset()};
+$("level").disabled=$("mode").value!=="ai";render();
+</script>
+</body>
+</html>
